@@ -7,7 +7,6 @@ public class RootBodyPart extends BodyPart {
     }
 
     public void insert(BodyPart other) {
-        System.out.println("\nStart inserting...");
         other.locationList = locationList;
         insertRec(other);
     }

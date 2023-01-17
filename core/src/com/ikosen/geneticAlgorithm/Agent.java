@@ -7,12 +7,7 @@ import java.util.Random;
 
 public class Agent {
     // Genome
-    public int[] sGen1, sGen2; // Regulator of Agent's body structure
-    public byte[] tGen;
-    public boolean[] isMotor; // Decide whether the i-th part could exert internal torque or not
-    public byte[] frequencies; // Frequency of angular impulse (in 256 cycles unit)
-    public byte[] phases; // Body part initial phases (ranges from 0 to 256-1)
-    public float[] strength; // Menentukan kekuatan impuls (jika isMotor true)
+    public AgentBodyPart[] bodyParts;
 
     // Fenotype
 
@@ -24,9 +19,9 @@ public class Agent {
     private static float maxStrength;
 
     // Simulator attributes
-    private World world;
-    private Body[] bodyParts;
-    private BodyPart bodyRoot;
+    public World world;
+    private Body[] bodies;
+    private AgentRootBodyPart bodyRoot;
     public float fitness; // COM's distance traveled calculated from origin
     private boolean isCalculated;
 
@@ -35,6 +30,7 @@ public class Agent {
     private static final float TIME_STEP = 1f/60f; // number of steps in the simulation, only 10 seconds
     private static final int VELOCITY_ITERATIONS = 6; // number of steps in the simulation, only 10 seconds
     private static final int POSITION_ITERATIONS = 3; // number of steps in the simulation, only 10 seconds
+    private static boolean initialized = false;
 
     public static void init() {
         init(6, 16, 100f);
@@ -45,32 +41,67 @@ public class Agent {
         Agent.genomeLength = genomeLength;
         Agent.maxFrequency = maxFrequency;
         Agent.maxStrength = maxStrength;
+        initialized = true;
     }
 
     public Agent() {
+        if (!initialized)
+            init();
+
         // Create world
         world = new World(new Vector2(0, -10), true);
         isCalculated = false;
 
         // Generate Genome
-        sGen1 = new int[genomeLength];
-        sGen2 = new int[genomeLength];
-        tGen = new byte[genomeLength];
-        isMotor = new boolean[genomeLength];
-        frequencies = new byte[genomeLength];
-        phases = new byte[genomeLength];
-        strength = new float[genomeLength];
-        float temp = 0; // temporary variable for generating scaleGens
+        bodyParts = new AgentBodyPart[genomeLength];
 
-        for (int i=0; i<genomeLength; i++) {
-            sGen1[i] = random.nextInt();
-            sGen2[i] = random.nextInt();
-            tGen[i] = (byte) random.nextInt(4);
-            isMotor[i] = random.nextBoolean();
-            frequencies[i] = (byte) random.nextInt(maxFrequency);
-            phases[i] = (byte) random.nextInt(maxFrequency);
-            strength[i] = random.nextFloat() * maxStrength;
+        // Root
+        bodyParts[0] = new AgentRootBodyPart(
+                random.nextFloat(), // Width
+                random.nextFloat(), // Height
+                random.nextInt(),  // xVal
+                random.nextInt(),  // yVal
+                random.nextBoolean(),  // isMotor
+                random.nextFloat() * maxFrequency,  // freq
+                random.nextFloat() * (float) Math.PI,  // phase
+                random.nextFloat() * maxStrength,  // strength
+                random.nextFloat()  // color
+        );
+        bodyRoot = (AgentRootBodyPart) bodyParts[0];
+
+        // Non-Root
+        for (int i=1; i<genomeLength; i++) {
+            bodyParts[i] = new AgentBodyPart(
+                    random.nextFloat(), // Width
+                    random.nextFloat(), // Height
+                    random.nextInt(),  // xVal
+                    random.nextInt(),  // yVal
+                    random.nextBoolean(),  // isMotor
+                    random.nextFloat() * maxFrequency,  // freq
+                    random.nextFloat() * (float) Math.PI,  // phase
+                    random.nextFloat() * maxStrength,  // strength
+                    random.nextFloat()  // color
+                    );
         }
+
+        // Create ground for the world
+        BodyDef groundDef = new BodyDef();
+        groundDef.type = BodyDef.BodyType.StaticBody;
+        groundDef.position.set(0, -4);
+
+        Body groundBody = world.createBody(groundDef);
+        PolygonShape groundShape = new PolygonShape();
+        groundShape.setAsBox(20f, 0.1f);
+
+        FixtureDef groundFixtureDef = new FixtureDef();
+        groundFixtureDef.shape = groundShape;
+
+        groundBody.createFixture(groundFixtureDef);
+
+        groundShape.dispose();
+
+        // Construct body
+        constructBody(world);
     }
 
     // Genetic algorithm methods
@@ -86,8 +117,8 @@ public class Agent {
 
         float COMSum = 0f; // Center of mass
         float totalMass = 0f;
-        for (Body body : bodyParts) {
-            COMSum += body.getPosition().x;
+        for (Body body : bodies) {
+            COMSum += body.getWorldCenter().x;
             totalMass += body.getMass();
         }
         fitness = COMSum / totalMass;
@@ -95,52 +126,44 @@ public class Agent {
 
     public static void crossover(Agent agentA, Agent agentB, Agent targetMemory) {
         int index = random.nextInt(genomeLength);
-
         for (int i=0; i<index; i++) {
-            targetMemory.sGen1[i] = agentA.sGen1[i];
-            targetMemory.sGen2[i] = agentA.sGen2[i];
-            targetMemory.tGen[i] = agentA.tGen[i];
-            targetMemory.isMotor[i] = agentA.isMotor[i];
-            targetMemory.frequencies[i] = agentA.frequencies[i];
-            targetMemory.phases[i] = agentA.phases[i];
-            targetMemory.strength[i] = agentA.strength[i];
+            targetMemory.bodyParts[i].copyValue(agentA.bodyParts[i]);
         }
         for (int i=index; i<genomeLength; i++) {
-            targetMemory.sGen1[i] = agentB.sGen1[i];
-            targetMemory.sGen2[i] = agentB.sGen2[i];
-            targetMemory.tGen[i] = agentB.tGen[i];
-            targetMemory.isMotor[i] = agentB.isMotor[i];
-            targetMemory.frequencies[i] = agentB.frequencies[i];
-            targetMemory.phases[i] = agentB.phases[i];
-            targetMemory.strength[i] = agentB.strength[i];
+            targetMemory.bodyParts[i].copyValue(agentB.bodyParts[i]);
         }
     }
 
     public void mutate() {
         int index = random.nextInt(genomeLength);
-        float temp;
 
         switch(random.nextInt(8)) {
             case 0:
-                sGen1[index] = random.nextInt();
+                bodyParts[index].location.width = random.nextInt();
                 break;
             case 1:
-                sGen2[index] = random.nextInt();
+                bodyParts[index].location.height = random.nextInt();
                 break;
             case 2:
-                tGen[index] =(byte) random.nextInt(4);
+                bodyParts[index].xVal = random.nextInt();
                 break;
             case 3:
-                isMotor[index] = random.nextBoolean();
+                bodyParts[index].yVal = random.nextInt();
                 break;
             case 4:
-                frequencies[index] = (byte) random.nextInt(maxFrequency);
+                bodyParts[index].isMotor = !bodyParts[index].isMotor;
                 break;
             case 5:
-                phases[index] = (byte) random.nextInt(maxFrequency);
+                bodyParts[index].freq = random.nextFloat() * maxFrequency;
                 break;
             case 6:
-                strength[index] = random.nextFloat() * maxStrength;
+                bodyParts[index].phase = random.nextInt() * (float) Math.PI;
+                break;
+            case 7:
+                bodyParts[index].strength = random.nextFloat() * maxStrength;
+                break;
+            case 8:
+                bodyParts[index].color = random.nextFloat();
                 break;
 
         }
@@ -148,23 +171,54 @@ public class Agent {
 
     // Agent-world integration initialization
     public void constructBody(World world) {
-        // TODO : IMPLEMENT THIS
-    }
-
-    // Auxillary methods
-    private static int gcd(int a, int b)
-    {
-        return b == 0? a: gcd(b, a % b);
-    }
-
-    private static int lcm(int[] arr, int idx) {
-        // lcm(a,b) = (a*b/gcd(a,b))
-        if (idx == arr.length - 1){
-            return arr[idx];
+        for (int i=1; i<genomeLength; i++) {
+            bodyRoot.insert(bodyParts[i]);
         }
-        int a = arr[idx];
-        int b = lcm(arr, idx+1);
-        return (a*b/ gcd(a,b));
+        traverseAndConstruct(bodyRoot, null, world);
+    }
+
+    private void traverseAndConstruct(AgentBodyPart bodyPart, AgentBodyPart prev, World world) { // Auxiliary recursive method to construct world
+        if (bodyPart == null)
+            return;
+
+        bodyPart.printLocation();
+
+        // frequently used references
+        Location location = bodyPart.location;
+
+        // visit
+        BodyDef boxDef = new BodyDef();
+        boxDef.type = BodyDef.BodyType.DynamicBody;
+        boxDef.position.set(location.x1, location.y1);
+
+        Body boxBody = world.createBody(boxDef);
+        PolygonShape boxShape = new PolygonShape();
+        boxShape.set(new Vector2[] {
+                new Vector2(0f, 0f),
+                new Vector2(location.width, 0f),
+                new Vector2(location.width, location.height),
+                new Vector2(0f, location.height),
+        });
+
+        FixtureDef boxFixtureDef = new FixtureDef();
+        boxFixtureDef.shape = boxShape;
+        boxFixtureDef.density = 1.0f;
+        boxFixtureDef.friction = 0.8f;
+        boxFixtureDef.restitution = 0.1f;
+
+        boxBody.createFixture(boxFixtureDef);
+        boxShape.dispose();
+
+        // Create joint with prev
+        if (prev != null) {
+            // TODO : implementasikan ini
+        }
+
+        // visit children
+        traverseAndConstruct((AgentBodyPart) bodyPart.TL, bodyPart, world);
+        traverseAndConstruct((AgentBodyPart) bodyPart.TR, bodyPart, world);
+        traverseAndConstruct((AgentBodyPart) bodyPart.BR, bodyPart, world);
+        traverseAndConstruct((AgentBodyPart) bodyPart.BL, bodyPart, world);
     }
 
 }

@@ -86,6 +86,6 @@ public class BodyPart {
     }
 
     public void printLocation() {
-        System.out.println("::" + location.x1 + " " + location.y1);
+        System.out.printf("[%.2f, %.2f] - [%.2f, %.2f]\n", location.x1, location.x2, location.y1, location.y2);
     }
 }
