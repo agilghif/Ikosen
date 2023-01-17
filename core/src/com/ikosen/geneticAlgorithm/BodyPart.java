@@ -3,7 +3,7 @@ package com.ikosen.geneticAlgorithm;
 public class BodyPart {
     public int xVal, yVal;
     public Location location;  // Lokasi terkini dari body part
-    public Location locationList;  // Location dari root body part node [0,0]
+    public LocationList locationList;  // Location dari root body part node [0,0]
     public BodyPart TR, TL, BR, BL; // Children dari body part
 
     public BodyPart(float width, float height, int xVal, int yVal) {
@@ -12,66 +12,62 @@ public class BodyPart {
         this.yVal = yVal;
     }
 
-    public void insert(BodyPart other) {
-        locationList = location;
-        other.locationList = locationList;
-        insert(other, 0f, 0f);
-    }
+    protected void insertRec(BodyPart other) {
+        other.location.snapTo(location);
 
-    private void insert(BodyPart other, float offsetX, float offsetY) {
         if (other.xVal < xVal) { // LEFT
             if (other.yVal < yVal) { // BOTTOM
-                other.moveBL(other.location.width, other.location.height);
-                if (BL != null) {
-                    BL.insert(other);
+                // ----------------------- [BL]
+                if (BL == null) {
+                    other.move(-other.location.width, -other.location.height);
+                    if (!locationList.contains(other.location)) {
+                        BL = other;
+                        locationList.add(other.location);
+                    }
                 }
                 else {
-                    if (!locationList.contains(other.location)) {
-                        System.out.println("Masuk BL");
-                        BL = other;
-                        locationList.insert(other.location);
-                    }
+                    BL.insertRec(other);
                 }
             }
             else { // TOP
-                other.moveTL(other.location.width, location.height);
-                if (TL != null) {
-                    TL.insert(other);
+                // ----------------------- [TL]
+                if (TL == null) {
+                    other.move(-other.location.width, location.height);
+                    if (!locationList.contains(other.location)) {
+                        TL = other;
+                        locationList.add(other.location);
+                    }
                 }
                 else {
-                    if (!locationList.contains(other.location)) {
-                        System.out.println("Masuk TL");
-                        TL = other;
-                        locationList.insert(other.location);
-                    }
+                    TL.insertRec(other);
                 }
             }
         }
         else { // RIGHT
             if (other.yVal < yVal) { // BOTTOM
-                other.moveBR(location.width, other.location.height);
-                if (BR != null) {
-                    BR.insert(other);
+                // ----------------------- [BR]
+                if (BR == null) {
+                    other.move(location.width, -other.location.height);
+                    if (!locationList.contains(other.location)) {
+                        BR = other;
+                        locationList.add(other.location);
+                    }
                 }
                 else {
-                    if (!locationList.contains(other.location)) {
-                        System.out.println("Masuk BR");
-                        BR = other;
-                        locationList.insert(other.location);
-                    }
+                    BR.insertRec(other);
                 }
             }
             else { // TOP
-                other.moveTR(location.width, location.height);
-                if (TR != null) {
-                    TR.insert(other);
+                // ----------------------- [TR]
+                if (TR == null) {
+                    other.move(location.width, location.height);
+                    if (!locationList.contains(other.location)) {
+                        TR = other;
+                        locationList.add(other.location);
+                    }
                 }
                 else {
-                    if (!locationList.contains(other.location)) {
-                        System.out.println("Masuk TR");
-                        TR = other;
-                        locationList.insert(other.location);
-                    }
+                    TR.insertRec(other);
                 }
             }
         }
@@ -83,23 +79,10 @@ public class BodyPart {
         BR = null;
         BL = null;
         location.resetLocation();
-        location.setChild(null, null);
     }
 
-    public void moveTR(float dx, float dy) {
-        location.moveTR(dx, dy);
-    }
-
-    public void moveTL(float dx, float dy) {
-        location.moveTL(dx, dy);
-    }
-
-    public void moveBR(float dx, float dy) {
-        location.moveBR(dx, dy);
-    }
-
-    public void moveBL(float dx, float dy) {
-        location.moveBL(dx, dy);
+    public void move(float dx, float dy) {
+        location.move(dx, dy);
     }
 
     public void printLocation() {
