@@ -29,78 +29,13 @@ public class Ikosen extends ApplicationAdapter {
 	
 	@Override
 	public void create () {
-//		// Initializing world
-//		world = new World(new Vector2(0f,-10f), true);
-//        bodies = new Body[3];
-//        float[] xs = new float[] {5f, 7.01f, 9.02f};
-//        float[] ys = new float[] {10f, 12.01f, 14.02f};
-//
-//		// Initializing boxes
-//        for(int i=0; i<3; i++) {
-//            BodyDef boxDef = new BodyDef();
-//            boxDef.type = BodyDef.BodyType.DynamicBody;
-//            boxDef.position.set(xs[i], ys[i]);
-//
-//            Body boxBody = world.createBody(boxDef);
-//            PolygonShape boxShape = new PolygonShape();
-//            boxShape.setAsBox(1f, 1f);
-//
-//            FixtureDef boxFixtureDef = new FixtureDef();
-//            boxFixtureDef.shape = boxShape;
-//            boxFixtureDef.density = 1.0f;
-//            boxFixtureDef.friction = 0.8f;
-//            boxFixtureDef.restitution = 0.1f;
-//
-//            boxBody.createFixture(boxFixtureDef);
-//			bodies[i] = boxBody;
-//
-//            boxShape.dispose();
-//        }
-//
-//        // Initialize joint
-//        DistanceJointDef joint = new DistanceJointDef();
-//        joint.length = 0.01f;
-//		joint.initialize(bodies[0], bodies[1], new Vector2(6f,11f), new Vector2(6f,11f));
-//		joint.collideConnected = true;
-//        joint.dampingRatio = 0.3f;
-//		world.createJoint(joint);
-//
-//        joint = new DistanceJointDef();
-//        joint.length = 0.01f;
-//        joint.initialize(bodies[1], bodies[2], new Vector2(8f,13f), new Vector2(8f,13f));
-//        joint.collideConnected = true;
-//        joint.dampingRatio = 0.3f;
-//        world.createJoint(joint);
-//
-//		// Initializing ground
-//        float[] groundPosX = new float[] {5f, 0f, 10f};
-//        float[] groundPosY = new float[] {0f, 5f, 5f};
-//        float[] groundWidth = new float[] {5f, 0.1f, 0.1f};
-//        float[] groundHeight = new float[] {0.1f, 5f, 5f};
-//
-//        for (int i=0; i<3; i++) {
-//            BodyDef groundDef = new BodyDef();
-//            groundDef.type = BodyDef.BodyType.StaticBody;
-//            groundDef.position.set(groundPosX[i], groundPosY[i]);
-//
-//            Body groundBody = world.createBody(groundDef);
-//            PolygonShape groundShape = new PolygonShape();
-//            groundShape.setAsBox(groundWidth[i], groundHeight[i]);
-//
-//            FixtureDef groundFixtureDef = new FixtureDef();
-//            groundFixtureDef.shape = groundShape;
-//
-//            groundBody.createFixture(groundFixtureDef);
-//
-//            groundShape.dispose();
-//        }
         // Initializing Agent;
+		Agent.init(6, 10, 10);
 		Agent agent = new Agent();
 		world = agent.world;
 
 		// Setting the debug renderer
 		debugRenderer = new Box2DDebugRenderer();
-		debugRenderer.setDrawJoints(true);
 
 		// Setting the Sprite Batch
 		batch = new SpriteBatch();
@@ -108,6 +43,7 @@ public class Ikosen extends ApplicationAdapter {
 		// Setting the camera
 		camera = new OrthographicCamera();
 		camera.setToOrtho(false, 10f, 10f);
+		camera.translate(-5f, -5f);
 
 	}
 

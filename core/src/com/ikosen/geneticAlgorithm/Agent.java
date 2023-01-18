@@ -2,6 +2,8 @@ package com.ikosen.geneticAlgorithm;
 
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
+import com.badlogic.gdx.physics.box2d.joints.DistanceJointDef;
+import com.badlogic.gdx.physics.box2d.joints.RevoluteJointDef;
 
 import java.util.Random;
 
@@ -49,7 +51,7 @@ public class Agent {
             init();
 
         // Create world
-        world = new World(new Vector2(0, -10), true);
+        world = new World(new Vector2(0, -0.5f), true);
         isCalculated = false;
 
         // Generate Genome
@@ -101,7 +103,7 @@ public class Agent {
         groundShape.dispose();
 
         // Construct body
-        constructBody(world);
+        constructBody();
     }
 
     // Genetic algorithm methods
@@ -170,14 +172,14 @@ public class Agent {
     }
 
     // Agent-world integration initialization
-    public void constructBody(World world) {
+    public void constructBody() {
         for (int i=1; i<genomeLength; i++) {
             bodyRoot.insert(bodyParts[i]);
         }
-        traverseAndConstruct(bodyRoot, null, world);
+        traverseAndConstruct(bodyRoot, null, null, -1);
     }
 
-    private void traverseAndConstruct(AgentBodyPart bodyPart, AgentBodyPart prev, World world) { // Auxiliary recursive method to construct world
+    private void traverseAndConstruct(AgentBodyPart bodyPart, AgentBodyPart prev, Body prevBody, int case_) { // Auxiliary recursive method to construct world
         if (bodyPart == null)
             return;
 
@@ -193,11 +195,13 @@ public class Agent {
 
         Body boxBody = world.createBody(boxDef);
         PolygonShape boxShape = new PolygonShape();
+        // to prevent bodies colliding due to precision problemm
+        float skinX = location.width * 0.001f, skinY = location.height * 0.001f;
         boxShape.set(new Vector2[] {
-                new Vector2(0f, 0f),
-                new Vector2(location.width, 0f),
-                new Vector2(location.width, location.height),
-                new Vector2(0f, location.height),
+                new Vector2(0f + skinX, 0f + skinY),
+                new Vector2(location.width - skinX, 0f + skinY),
+                new Vector2(location.width - skinX, location.height - skinY),
+                new Vector2(0f + skinX, location.height - skinY),
         });
 
         FixtureDef boxFixtureDef = new FixtureDef();
@@ -212,13 +216,41 @@ public class Agent {
         // Create joint with prev
         if (prev != null) {
             // TODO : implementasikan ini
+            RevoluteJointDef joint = new RevoluteJointDef();
+            Vector2 localAnchorA = null, localAnchorB = null;
+
+            switch(case_) {
+                case 0: // TL
+                    localAnchorA = new Vector2(0f, prev.location.height);
+                    localAnchorB = new Vector2(bodyPart.location.width, 0f);
+                    break;
+                case 1: // TR
+                    localAnchorA = new Vector2(prev.location.width, prev.location.height);
+                    localAnchorB = new Vector2(0f, 0f);
+                    break;
+                case 2: // BR
+                    localAnchorA = new Vector2(prev.location.width, 0f);
+                    localAnchorB = new Vector2(0f, bodyPart.location.height);
+                    break;
+                case 3: // BL
+                    localAnchorA = new Vector2(0f, 0f);
+                    localAnchorB = new Vector2(bodyPart.location.width, bodyPart.location.height);
+                    break;
+            }
+
+            joint.bodyA = prevBody;
+            joint.bodyB = boxBody;
+            joint.localAnchorA.set(localAnchorA);
+            joint.localAnchorB.set(localAnchorB);
+            joint.collideConnected = true;
+            world.createJoint(joint);
         }
 
         // visit children
-        traverseAndConstruct((AgentBodyPart) bodyPart.TL, bodyPart, world);
-        traverseAndConstruct((AgentBodyPart) bodyPart.TR, bodyPart, world);
-        traverseAndConstruct((AgentBodyPart) bodyPart.BR, bodyPart, world);
-        traverseAndConstruct((AgentBodyPart) bodyPart.BL, bodyPart, world);
+        traverseAndConstruct((AgentBodyPart) bodyPart.TL, bodyPart, boxBody, 0);
+        traverseAndConstruct((AgentBodyPart) bodyPart.TR, bodyPart, boxBody, 1);
+        traverseAndConstruct((AgentBodyPart) bodyPart.BR, bodyPart, boxBody, 2);
+        traverseAndConstruct((AgentBodyPart) bodyPart.BL, bodyPart, boxBody, 3);
     }
 
 }
